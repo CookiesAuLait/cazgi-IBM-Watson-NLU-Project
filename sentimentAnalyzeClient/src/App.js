@@ -2,6 +2,7 @@ import './bootstrap.min.css';
 import './App.css';
 import EmotionTable from './EmotionTable.js';
 import React from 'react';
+import axios from 'axios';
 
 class App extends React.Component {
   state = {innercomp:<textarea rows="4" cols="50" id="textinput"/>,
@@ -9,15 +10,17 @@ class App extends React.Component {
           sentimentOutput:[],
           sentiment:true
         }
+        
+  title = "Sentiment Analyzer"
   
   renderTextArea = ()=>{
     document.getElementById("textinput").value = "";
     if(this.state.mode === "url") {
       this.setState({innercomp:<textarea rows="4" cols="50" id="textinput"/>,
-      mode: "text",
-      sentimentOutput:[],
-      sentiment:true
-    })
+		  mode: "text",
+		  sentimentOutput:[],
+		  sentiment:true
+    	})
     } 
   }
 
@@ -25,15 +28,16 @@ class App extends React.Component {
     document.getElementById("textinput").value = "";
     if(this.state.mode === "text") {
       this.setState({innercomp:<textarea rows="1" cols="50" id="textinput"/>,
-      mode: "url",
-      sentimentOutput:[],
-      sentiment:true
-    })
+		  mode: "url",
+		  sentimentOutput:[],
+		  sentiment:true
+    	})
     }
   }
 
   sendForSentimentAnalysis = () => {
     this.setState({sentiment:true});
+    let ret = "";
     let url = ".";
 
     if(this.state.mode === "url") {
@@ -41,49 +45,71 @@ class App extends React.Component {
     } else {
       url = url+"/text/sentiment?text="+document.getElementById("textinput").value;
     }
-    fetch(url).then((response)=>{
-        response.text().then((data)=>{
-        this.setState({sentimentOutput:data});
-        let output = data;
-        if(data === "positive") {
-          output = <div style={{color:"green",fontSize:20}}>{data}</div>
-        } else if (data === "negative"){
-          output = <div style={{color:"red",fontSize:20}}>{data}</div>
-        } else {
-          output = <div style={{color:"orange",fontSize:20}}>{data}</div>
-        }
-        this.setState({sentimentOutput:output});
-      })});
+    ret = axios.get(url);
+    ret.then((response)=>{
+      this.setState({sentimentOutput: response.data});
+      //Include code here to check the sentiment and format the data accordingly
+
+      //this.setState({sentimentOutput:response.data});
+      let output = response.data;
+      if(response.data === "positive") {
+        output = <div style={{color:"green",fontSize:20}}>{response.data}</div>
+      } else if (response.data === "negative"){
+        output = <div style={{color:"red",fontSize:20}}>{response.data}</div>
+      } else {
+        output = <div style={{color:"yellow",fontSize:20}}>{response.data}</div>
+      }
+      this.setState({sentimentOutput:output});
+    }).catch(error => {
+    	this.setState({sentimentOutput: <div style={{ color: "red", fontSize: 20}}>{this.validateError(error)} </div>})
+    });
   }
 
   sendForEmotionAnalysis = () => {
-
     this.setState({sentiment:false});
+    let ret = "";
     let url = ".";
     if(this.state.mode === "url") {
       url = url+"/url/emotion?url="+document.getElementById("textinput").value;
     } else {
       url = url+"/text/emotion/?text="+document.getElementById("textinput").value;
     }
-    fetch(url).then((response)=>{
-      response.json().then((data)=>{
-      this.setState({sentimentOutput:<EmotionTable emotions={data}/>});
-  })})  ;
+    ret = axios.get(url);
+
+    ret.then((response)=>{
+	  if (response.data !== 'Without data'){
+	        this.setState({sentimentOutput:<EmotionTable emotions={response.data}/>});
+	  } else {
+	  		this.setState({sentimentOutput: <div style={{ color: "orange", fontSize: 20}}>{response.data} </div>});
+	  }
+  	}).catch(error => {
+  		this.setState({sentimentOutput: <div style={{ color: "red", fontSize: 20}}>{this.validateError(error)} </div>});
+  	});
   }
   
+  validateError(error) {
+		var errorData = error.message;
+		if (this.state.mode === "url") {
+			errorData += " Invalid URL";
+		} else {
+			errorData += " Unrecognized language";
+		}
+		return errorData;
+  }
 
   render() {
-    return (  
+    return ( 
       <div className="App">
-      <button className="btn btn-info" onClick={this.renderTextArea}>Text</button>
-        <button className="btn btn-dark"  onClick={this.renderTextBox}>URL</button>
-        <br/><br/>
-        {this.state.innercomp}
-        <br/>
-        <button className="btn-primary" onClick={this.sendForSentimentAnalysis}>Analyze Sentiment</button>
-        <button className="btn-primary" onClick={this.sendForEmotionAnalysis}>Analyze Emotion</button>
-        <br/>
-            {this.state.sentimentOutput}
+      	  <title>{this.title}</title>
+		  <button className="btn btn-info" onClick={this.renderTextArea}>Text</button>
+			<button className="btn btn-dark"  onClick={this.renderTextBox}>URL</button>
+			<br/><br/>
+			{this.state.innercomp}
+			<br/>
+			<button className="btn-primary" onClick={this.sendForSentimentAnalysis}>Analyze Sentiment</button>
+			<button className="btn-primary" onClick={this.sendForEmotionAnalysis}>Analyze Emotion</button>
+			<br/>
+				{this.state.sentimentOutput}
       </div>
     );
     }
